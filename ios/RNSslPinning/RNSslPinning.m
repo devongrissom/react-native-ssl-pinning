@@ -30,16 +30,16 @@ RCT_EXPORT_MODULE();
 }
 
 RCT_EXPORT_METHOD(getCookies: (NSURL *)url resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject){
-    
+
     NSHTTPCookie *cookie;
     NSHTTPCookieStorage* cookieJar  =  NSHTTPCookieStorage.sharedHTTPCookieStorage;
-    
+
     NSMutableDictionary* dictionary = @{}.mutableCopy;
-    
+
     for (cookie in [cookieJar cookiesForURL:url]) {
         [dictionary setObject:cookie.value forKey:cookie.name];
     }
-    
+
     if ([dictionary count] > 0){
         resolve(dictionary);
     }
@@ -54,26 +54,26 @@ RCT_EXPORT_METHOD(getCookies: (NSURL *)url resolver:(RCTPromiseResolveBlock)reso
 RCT_EXPORT_METHOD(removeCookieByName: (NSString *)cookieName
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {
-    
+
     NSHTTPCookieStorage *cookieStorage = [NSHTTPCookieStorage sharedHTTPCookieStorage];
     for (NSHTTPCookie *cookie in cookieStorage.cookies) {
         // [cookieStorage deleteCookie:each];
         NSString * name = cookie.name;
-        
+
         if([cookieName isEqualToString:name]) {
             [cookieStorage deleteCookie:cookie];
         }
     }
-    
+
     resolve(nil);
-    
+
 }
 
 
 -(void)performRequest:(AFURLSessionManager*)manager  obj:(NSDictionary *)obj  request:(NSMutableURLRequest*) request callback:(RCTResponseSenderBlock) callback  {
-    
+
     [[manager dataTaskWithRequest:request completionHandler:^(NSURLResponse * _Nonnull response, id  _Nullable responseObject, NSError * _Nullable error) {
-        
+
         NSHTTPURLResponse *httpResp = (NSHTTPURLResponse*) response;
         NSString *bodyString = [[NSString alloc] initWithData: responseObject encoding:NSUTF8StringEncoding];
         NSInteger statusCode = httpResp.statusCode;
@@ -81,7 +81,7 @@ RCT_EXPORT_METHOD(removeCookieByName: (NSString *)cookieName
         if (!error) {
             // if(obj[@"responseType"]){
             NSString * responseType = obj[@"responseType"];
-            
+
             if ([responseType isEqualToString:@"base64"]){
                 NSString* base64String = [responseObject base64EncodedStringWithOptions:0];
                 callback(@[[NSNull null], @{
@@ -94,7 +94,7 @@ RCT_EXPORT_METHOD(removeCookieByName: (NSString *)cookieName
                 callback(@[[NSNull null], @{
                                 @"status": @(statusCode),
                                 @"headers": httpResp.allHeaderFields,
-                                @"bodyString": bodyString ? bodyString : @""           
+                                @"bodyString": bodyString ? bodyString : @""
                                 }]);
             }
         } else if (error && error.userInfo[AFNetworkingOperationFailingURLResponseDataErrorKey]) {
@@ -111,12 +111,12 @@ RCT_EXPORT_METHOD(removeCookieByName: (NSString *)cookieName
             });
         }
     }] resume];
-    
+
 }
 
 
 -(void) setHeaders: (NSDictionary *)obj request:(NSMutableURLRequest*) request {
-    
+
     if (obj[@"headers"] && [obj[@"headers"] isKindOfClass:[NSDictionary class]]) {
         NSMutableDictionary *m = [obj[@"headers"] mutableCopy];
         for (NSString *key in [m allKeys]) {
@@ -126,12 +126,12 @@ RCT_EXPORT_METHOD(removeCookieByName: (NSString *)cookieName
         }
         [request setAllHTTPHeaderFields:m];
     }
-    
+
 }
 
 -(void)performMultipartRequest: (AFURLSessionManager*)manager obj:(NSDictionary *)obj url:(NSString *)url request:(NSMutableURLRequest*) request callback:(RCTResponseSenderBlock) callback formData:(NSDictionary*) formData {
-    
-    
+
+
     request = [[AFHTTPRequestSerializer serializer] multipartFormRequestWithMethod:@"POST" URLString:url parameters:nil constructingBodyWithBlock:^(id<AFMultipartFormData> _formData) {
                         if([formData objectForKey:@"_parts"]){
                             NSArray * parts = formData[@"_parts"];
@@ -154,7 +154,7 @@ RCT_EXPORT_METHOD(removeCookieByName: (NSString *)cookieName
 
                                     }
                                     else  {
-                                        
+
                                         NSString * value = part[1];
                                         NSData *data = [value dataUsingEncoding:NSUTF8StringEncoding];
                                         [_formData appendPartWithFormData:data name: key];
@@ -163,52 +163,52 @@ RCT_EXPORT_METHOD(removeCookieByName: (NSString *)cookieName
                             }
                         }
     } error:nil];
-    
 
-    
+
+
     NSURLSessionUploadTask *uploadTask;
     uploadTask = [manager
                   uploadTaskWithStreamedRequest:request
                   progress:^(NSProgress * _Nonnull uploadProgress) {
-                      
+
                   }
                   completionHandler:^(NSURLResponse * _Nonnull response, id  _Nullable responseObject, NSError * _Nullable error) {
                       if (error) {
                           NSLog(@"Error: %@", error);
                       } else {
-                          NSLog(@"%@ %@", response, responseObject);
-                          
+                          // NSLog(@"%@ %@", response, responseObject);
+
                           NSHTTPURLResponse *httpResp = (NSHTTPURLResponse*) response;
 
                           NSString *bodyString = [[NSString alloc] initWithData: responseObject encoding:NSUTF8StringEncoding];
                           NSInteger statusCode = httpResp.statusCode;
-                          
+
                           NSDictionary *res = @{
                                                 @"status": @(statusCode),
                                                 @"headers": httpResp.allHeaderFields,
                                                 @"bodyString": bodyString ? bodyString : @""
                                                 };
                           callback(@[[NSNull null], res]);
-                          
+
                       }
                   }];
-    
+
     [uploadTask resume];
 }
 
 RCT_EXPORT_METHOD(fetch:(NSString *)url obj:(NSDictionary *)obj callback:(RCTResponseSenderBlock)callback) {
     NSURL *u = [NSURL URLWithString:url];
     NSMutableURLRequest *request = [[NSMutableURLRequest alloc] initWithURL:u];
-    
+
     /*
     NSURLSessionConfiguration *configuration = [NSURLSessionConfiguration defaultSessionConfiguration];
     configuration.requestCachePolicy = NSURLRequestReloadIgnoringLocalCacheData;
     AFURLSessionManager *manager = [[AFURLSessionManager alloc] initWithSessionConfiguration:configuration];
     */
-  
+
     AFURLSessionManager *manager = [[AFURLSessionManager alloc]
                                     initWithSessionConfiguration:[NSURLSessionConfiguration defaultSessionConfiguration]];
-    
+
     if ([obj[@"disableAllSecurity"] intValue] == 1) {
         // set policy: IGNORE all security checks
         AFSecurityPolicy *policy = [AFSecurityPolicy policyWithPinningMode:AFSSLPinningModeNone];
@@ -232,16 +232,16 @@ RCT_EXPORT_METHOD(fetch:(NSString *)url obj:(NSDictionary *)obj callback:(RCTRes
         policy.allowInvalidCertificates = false;
         manager.securityPolicy = policy;
     }
-    
+
     manager.responseSerializer = [AFHTTPResponseSerializer serializer];
-    
+
     if (obj[@"method"]) {
         [request setHTTPMethod:obj[@"method"]];
     }
     if (obj[@"timeoutInterval"]) {
         [request setTimeoutInterval:[obj[@"timeoutInterval"] doubleValue] / 1000];
     }
-  
+
     if(obj[@"headers"]) {
         [self setHeaders:obj request:request];
     }
@@ -250,7 +250,7 @@ RCT_EXPORT_METHOD(fetch:(NSString *)url obj:(NSDictionary *)obj callback:(RCTRes
 
         if ([obj objectForKey:@"body"]) {
             NSDictionary * body = obj[@"body"];
-            
+
             // this is a multipart form data request
             if([body isKindOfClass:[NSDictionary class]] && [body objectForKey:@"formData"]){
                 // post multipart
@@ -265,16 +265,16 @@ RCT_EXPORT_METHOD(fetch:(NSString *)url obj:(NSDictionary *)obj callback:(RCTRes
                 [self performRequest:manager obj:obj request:request callback:callback ];
                 //TODO: if no body
             }
-            
+
         }
         else {
             [self performRequest:manager obj:obj request:request callback:callback ];
         }
     }
     else {
-        
+
     }
-    
+
 }
 
 + (BOOL)requiresMainQueueSetup
